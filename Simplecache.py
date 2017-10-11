@@ -7,9 +7,9 @@ Description:
     Simple Cache object
 """
 from __future__ import print_function
-import sys
+from sys import getsizeof
 from collections import OrderedDict
-
+import json
 
 class Simplecache(object):
     """
@@ -74,12 +74,12 @@ class Simplecache(object):
             exception
         """
         try:
-            if self.size() >= self.max_size:
+            if self.length() == self.max_size:
                 self.pop()
                 self.cache[key] = item
             else:
                 self.cache[key] = item
-        except ValueError as exception:
+        except ValueError:
             raise
         except:
             raise
@@ -99,7 +99,7 @@ class Simplecache(object):
         """
         try:
             return key in self.cache
-        except ValueError as exception:
+        except ValueError:
             raise
         except:
             raise
@@ -113,13 +113,15 @@ class Simplecache(object):
         vars:
             none
         returns:
-            self.cache[key]/False 
+            self.cache[key]/False
         raises:
             exception
         """
         try:
             return self.cache[key]
-        except ValueError as exception:
+        except KeyError:
+            return False
+        except ValueError:
             raise
         except:
             raise
@@ -139,7 +141,7 @@ class Simplecache(object):
         """
         try:
             return self.cache.pop(key)
-        except ValueError as exception:
+        except ValueError:
             raise
         except:
             raise
@@ -158,12 +160,34 @@ class Simplecache(object):
         """
         try:
             self.cache.popitem(last=False)
-        except ValueError as exception:
+        except ValueError:
             raise
         except:
             raise
 
-    def printcache(self):
+    def oldest(self):
+        """
+        return oldest entry
+        """
+        try:
+            return self.cache.keys()[0]
+        except ValueError:
+            raise
+        except:
+            raise
+
+    def youngest(self):
+        """
+        return youngest entry
+        """
+        try:
+            return self.cache.keys()[-1]
+        except ValueError:
+            raise
+        except:
+            raise
+
+    def print(self):
         """
         print the contents of the cache
         args:
@@ -176,9 +200,8 @@ class Simplecache(object):
             exception
         """
         try:
-            for key, value in self.cache.iteritems():
-                print("{} : {}".format(key, value))
-        except ValueError as exception:
+            print(json.dumps(self.cache, indent=1))
+        except ValueError:
             raise
         except:
             raise
@@ -215,12 +238,11 @@ class Simplecache(object):
             exception
         """
         try:
-            return sys.getsizeof(self.cache)
+            return getsizeof(self.cache)
         except ValueError:
             raise
         except:
             raise
-
 
     def limit(self):
         """
@@ -241,7 +263,7 @@ class Simplecache(object):
             raise
         except:
             raise
-            
+
     def write(self, target):
         """
         write cache to json file
@@ -255,7 +277,6 @@ class Simplecache(object):
         raises:
             unhandled exception
         """
-        import json
 
         try:
             with open(target, 'w') as outfile:
@@ -278,12 +299,20 @@ class Simplecache(object):
         raises:
             unhandled exception
         """
-        import json
 
         try:
             with open(target, 'r') as infile:
                 self.cache = (json.load(infile))
         except IOError:
             raise
+        except:
+            raise
+
+    def clear(self):
+        """
+        clear the cache
+        """
+        try:
+            self.__init__()
         except:
             raise
