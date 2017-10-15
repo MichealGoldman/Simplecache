@@ -1,20 +1,24 @@
 """
 Title: simplecache
 Author: Harold Goldman
-Date: 10/10/2017
+Date: 10/15/2017
+URL: https://github.com/mikerah13/Simplecache
 email: mikerah@gmail.com
 Description:
     Simple Cache object
 """
 from __future__ import print_function
-import sys
+from sys import getsizeof
 from collections import OrderedDict
+from time import time
+import json
 
 
 class Simplecache(object):
     """
     simple cache object
     """
+
     def __init__(self):
         """
         init
@@ -27,23 +31,124 @@ class Simplecache(object):
         raises:
             nothing
         """
-        self.cache = OrderedDict()
-        self.max_size = 1000000
+        self.__cache = OrderedDict()
+        self.__max_size = 1000000
+        self.__ttl = False
+
+    def __expire(self):
+        """
+        remove keys, vals with expired ttl's
+        args:
+            self
+        vars:
+            nothing
+        returns:
+            nothing
+        raises:
+            exception
+        """
+        try:
+            for key, value in self.__cache.iteritems():
+                if value["time"] < time():
+                    self.delete(key)
+        except:
+            raise
+
+    def __value(self, val):
+        """
+        create value for cache
+        args:
+            self
+            val
+        vars:
+            nothing
+        returns:
+            value
+        raises:
+            nothing
+        """
+        return ({"val": val, "time": time() + self.__ttl})
+
+    def timeleft(self, key):
+        """
+        seconds till expired
+        args:
+            self
+            key
+        vars:
+            nothing
+        returns:
+            time left in seconds / False
+        raises:
+            exception
+        """
+        try:
+            if self.__ttl:
+                self.__expire()
+            if self.incache(key):
+                return int(self.__cache[key]["time"] - time())
+            return False
+        except:
+            raise
+
+    def setttl(self, ttl):
+        """
+        set ttl
+        args:
+            self
+            ttl <int>
+        vars:
+            nothing
+        returns:
+            nothing
+        raises:
+            exception
+        """
+        try:
+            if self.__ttl:
+                self.__expire()
+            self.__ttl = ttl
+        except:
+            raise
+
+    def getttl(self):
+        """
+        get ttl
+        args:
+            self
+        vars:
+            nothing
+        returns:
+            self.ttl
+        raises:
+            exception
+        """
+        try:
+            if self.__ttl:
+                self.__expire()
+            return self.__ttl
+        except:
+            raise
 
     def setmax(self, size):
         """
         set max size
         args:
             self
-            max <int>
+            size <int>
         vars:
             nothing
         returns:
             nothing
         raises:
-            nothing
+            exception
         """
-        self.max_size = size
+        try:
+            if self.__ttl:
+                self.__expire()
+            self.__max_size = size
+        except:
+            raise
 
     def getmax(self):
         """
@@ -57,7 +162,12 @@ class Simplecache(object):
         raises:
             nothing
         """
-        return self.max_size
+        try:
+            if self.__ttl:
+                self.__expire()
+            return self.__max_size
+        except:
+            raise
 
     def insert(self, key, item):
         """
@@ -74,19 +184,21 @@ class Simplecache(object):
             exception
         """
         try:
-            if self.size() >= self.max_size:
+            if self.__ttl:
+                self.__expire()
+            if self.length() == self.__max_size:
                 self.pop()
-                self.cache[key] = item
+                self.__cache[key] = self.__value(item)
             else:
-                self.cache[key] = item
-        except ValueError as exception:
+                self.__cache[key] = self.__value(item)
+        except ValueError:
             raise
         except:
             raise
 
     def incache(self, key):
         """
-        search cache
+        search cache for key
         args:
             self
             key
@@ -98,28 +210,34 @@ class Simplecache(object):
             exception
         """
         try:
-            return key in self.cache
-        except ValueError as exception:
+            if self.__ttl:
+                self.__expire()
+            return key in self.__cache
+        except ValueError:
             raise
         except:
             raise
 
     def search(self, key):
         """
-        search cache
+        search cache for value
         args:
             self
             key
         vars:
             none
         returns:
-            self.cache[key]/False 
+            self.cache[key]/False
         raises:
             exception
         """
         try:
-            return self.cache[key]
-        except ValueError as exception:
+            if self.__ttl:
+                self.__expire()
+            return self.__cache[key]["val"]
+        except KeyError:
+            return False
+        except ValueError:
             raise
         except:
             raise
@@ -138,8 +256,8 @@ class Simplecache(object):
             exception
         """
         try:
-            return self.cache.pop(key)
-        except ValueError as exception:
+            return self.__cache.pop(key, None)
+        except ValueError:
             raise
         except:
             raise
@@ -157,13 +275,57 @@ class Simplecache(object):
             exception
         """
         try:
-            self.cache.popitem(last=False)
-        except ValueError as exception:
+            if self.__ttl:
+                self.__expire()
+            self.__cache.popitem(last=False)
+        except ValueError:
             raise
         except:
             raise
 
-    def printcache(self):
+    def oldest(self):
+        """
+        return oldest entry
+        args:
+            self
+        vars:
+            none
+        returns:
+            none
+        raises:
+            ValueError/unhandled exception
+        """
+        try:
+            if self.__ttl:
+                self.__expire()
+            return self.__cache.keys()[0]
+        except ValueError:
+            raise
+        except:
+            raise
+
+    def youngest(self):
+        """
+        return youngest entry
+        args:
+            self
+        vars:
+            none
+        returns:
+            none
+        raises:
+            ValueError/unhandled exception
+        """
+        try:
+            if self.__ttl:
+                self.__expire()
+            return self.__cache.keys()[-1]
+        except ValueError:
+            raise
+        except:
+            raise
+
+    def print(self):
         """
         print the contents of the cache
         args:
@@ -176,9 +338,13 @@ class Simplecache(object):
             exception
         """
         try:
-            for key, value in self.cache.iteritems():
-                print("{} : {}".format(key, value))
-        except ValueError as exception:
+            if self.__ttl:
+                self.__expire()
+            data = OrderedDict()
+            for key, value in self.__cache.iteritems():
+                data[key] = value["val"]
+            print(json.dumps(data, indent=1))
+        except ValueError:
             raise
         except:
             raise
@@ -196,7 +362,9 @@ class Simplecache(object):
             exception
         """
         try:
-            return len(self.cache)
+            if self.__ttl:
+                self.__expire()
+            return len(self.__cache)
         except ValueError:
             raise
         except:
@@ -215,12 +383,13 @@ class Simplecache(object):
             exception
         """
         try:
-            return sys.getsizeof(self.cache)
+            if self.__ttl:
+                self.__expire()
+            return getsizeof(self.__cache)
         except ValueError:
             raise
         except:
             raise
-
 
     def limit(self):
         """
@@ -235,13 +404,15 @@ class Simplecache(object):
             exception
         """
         try:
-            while self.length() > self.max_size:
-                self.cache.popitem(last=False)
+            if self.__ttl:
+                self.__expire()
+            while self.length() > self.__max_size:
+                self.__cache.popitem(last=False)
         except ValueError:
             raise
         except:
             raise
-            
+
     def write(self, target):
         """
         write cache to json file
@@ -255,11 +426,14 @@ class Simplecache(object):
         raises:
             unhandled exception
         """
-        import json
-
         try:
+            if self.__ttl:
+                self.__expire()
+            data = OrderedDict()
+            for key, value in self.__cache.iteritems():
+                data[key] = value["val"]
             with open(target, 'w') as outfile:
-                json.dump(self.cache, outfile)
+                json.dump(data, outfile)
         except IOError:
             raise
         except:
@@ -278,12 +452,97 @@ class Simplecache(object):
         raises:
             unhandled exception
         """
-        import json
-
         try:
+            if self.__ttl:
+                self.__expire()
             with open(target, 'r') as infile:
-                self.cache = (json.load(infile))
+                data = (json.load(infile))
+            for key, value in data.iteritems():
+                self.insert(key, value)
         except IOError:
             raise
+        except:
+            raise
+
+    def clear(self):
+        """
+        clear the cache
+        args:
+            self
+        vars:
+            none
+        returns:
+            none
+        raises:
+            unhandled exception
+        """
+        try:
+            self.__init__()
+        except:
+            raise
+
+    def merge(self, target):
+        """
+        merged target Simplecache with self
+        args:
+            self
+            target
+        vars:
+            none
+        returns:
+            none
+        raises:
+            unhandled exception
+        """
+        try:
+            if self.__ttl:
+                self.__expire()
+            temp_max = self.__max_size
+            self.unload(target)
+            self.clear()
+            self.__max_size = temp_max
+            self.load(target)
+        except:
+            raise
+
+    def load(self, target):
+        """
+        loads target dictionary items into self
+        args:
+            self
+            target
+        vars:
+            none
+        returns:
+            none
+        raises:
+            unhandled exception
+        """
+        try:
+            if self.__ttl:
+                self.__expire()
+            for key, value in target.iteritems():
+                self.__cache[key] = self.__value(value)
+        except:
+            raise
+
+    def unload(self, target):
+        '''
+        unloads self into target dictionary
+        args:
+            self
+            target
+        vars:
+            none
+        returns:
+            none
+        raises:
+            unhandled exception
+        '''
+        try:
+            if self.__ttl:
+                self.__expire()
+            for key, value in self.__cache.iteritems():
+                target[key] = value
         except:
             raise
